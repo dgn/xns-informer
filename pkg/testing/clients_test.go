@@ -3,17 +3,23 @@ package testing
 import (
 	"context"
 	"testing"
+	"time"
 
+	"istio.io/client-go/pkg/apis/networking/v1beta1"
+	istioscheme "istio.io/client-go/pkg/clientset/versioned/scheme"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	kubetesting "k8s.io/client-go/testing"
 
+	"github.com/maistra/xns-informer/pkg/generated/istio"
+	"github.com/maistra/xns-informer/pkg/informers"
 	internaltesting "github.com/maistra/xns-informer/pkg/internal/testing"
 )
 
@@ -228,7 +234,9 @@ func TestUnstructuredObjectReflector(t *testing.T) {
 }
 
 func TestCreateNewFakeClients(t *testing.T) {
-	kc, dc, err := NewFakeClients(scheme.Scheme)
+	s := scheme.Scheme
+	istioscheme.AddToScheme(s)
+	kc, dc, ic, err := NewFakeClients(s)
 	if err != nil {
 		t.Fatalf("Failed to create clients: %v", err)
 	}
@@ -270,5 +278,61 @@ func TestCreateNewFakeClients(t *testing.T) {
 
 	if !equality.Semantic.DeepEqual(typed, converted) {
 		t.Fatalf("Fetched ConfigMaps not equal!\n%#v\n%#v\n", typed, converted)
+	}
+
+	ds := &v1beta1.DestinationRule{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-ds",
+			Namespace: ns,
+		},
+	}
+	_, err = ic.NetworkingV1beta1().DestinationRules(ns).Create(ctx, ds, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("Failed to create DestinationRule: %v", err)
+	}
+
+	destinationRuleList, err := ic.NetworkingV1beta1().DestinationRules(ns).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		t.Fatalf("Failed to list typed DestinationRule: %v", err)
+	}
+
+	if len(destinationRuleList.Items) != 1 {
+		t.Fail()
+	}
+
+	// Fetch typed ConfigMap with typed client.
+	_, err = ic.NetworkingV1beta1().DestinationRules(ns).Get(ctx, "test-ds", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("Failed to fetch typed DestinationRule: %v", err)
+	}
+
+	u, err = dc.Resource(v1beta1.SchemeGroupVersion.WithResource("destinationrules")).Namespace(ns).Get(ctx, "test-ds", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("Failed to fetch unstructured DestinationRules: %v", err)
+	}
+
+	convertedDestinationRule := &v1beta1.DestinationRule{}
+	if err := scheme.Scheme.Convert(u, convertedDestinationRule, nil); err != nil {
+		t.Fatalf("Failed to convert unstructured DestinationRules: %v", err)
+	}
+
+	if !equality.Semantic.DeepEqual(ds, convertedDestinationRule) {
+		t.Fatalf("Fetched DestinationRules not equal!\n%#v\n%#v\n", typed, converted)
+	}
+	f := informers.NewSharedInformerFactory(dc, time.Second)
+	// none of these work
+	//informer, err := istio.NewSharedInformerFactory(f).ForResource(v1beta1.SchemeGroupVersion.WithResource("destinationrules"))
+	informer := istio.NewSharedInformerFactory(f).Networking().V1alpha3().DestinationRules()
+	if err != nil {
+		t.Fatalf("Failed to get lister: %v", err)
+	}
+
+	lister := informer.Lister()
+	listedDestinationRules, err := lister.List(labels.Everything())
+	if err != nil {
+		t.Fatalf("Failed to list: %v", err)
+	}
+	if len(listedDestinationRules) != 1 {
+		t.Fatalf("Failed to list DestinationRules, got %v", listedDestinationRules)
 	}
 }

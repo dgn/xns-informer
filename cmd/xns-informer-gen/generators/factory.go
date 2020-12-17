@@ -31,6 +31,8 @@ func (g *factoryGenerator) Namers(c *generator.Context) namer.NameSystems {
 
 func (g *factoryGenerator) Imports(c *generator.Context) (imports []string) {
 	imports = append(imports, g.imports.ImportLines()...)
+	imports = append(imports, "k8s.io/apimachinery/pkg/runtime/schema")
+	imports = append(imports, "k8s.io/client-go/tools/cache")
 	imports = append(imports, fmt.Sprintf("xnsinformers %q", xnsinformersPkg))
 	return
 }
@@ -68,6 +70,10 @@ $- range .groups$
   $.Name$() $.Interface|raw$
 $- end$
 }
+
+type informerFunc func 
+
+var gvrToInformerMap := map[schema.GroupVersionResource]cache.SharedIndexInformer
 
 type sharedInformerFactory struct {
   factory xnsinformers.SharedInformerFactory

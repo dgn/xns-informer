@@ -19,7 +19,7 @@ require (
 	google.golang.org/appengine v1.6.6 // indirect
 	google.golang.org/protobuf v1.25.0 // indirect
 	istio.io/api v0.0.0-20201215013001-d474186cff8d // indirect
-	istio.io/client-go v1.8.1 // indirect
+	istio.io/client-go v1.8.1
 	k8s.io/api v0.19.2
 	k8s.io/apimachinery v0.19.2
 	k8s.io/client-go v0.19.2

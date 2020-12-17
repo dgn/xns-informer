@@ -6,11 +6,13 @@ import (
 	networking "github.com/maistra/xns-informer/pkg/generated/istio/networking"
 	security "github.com/maistra/xns-informer/pkg/generated/istio/security"
 	xnsinformers "github.com/maistra/xns-informer/pkg/informers"
+	schema "k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 type SharedInformerFactory interface {
 	Networking() networking.Interface
 	Security() security.Interface
+	ForResource(resource schema.GroupVersionResource) (GenericInformer, error)
 }
 
 type sharedInformerFactory struct {
