@@ -53,7 +53,6 @@ k8s_group_versions=(
   k8s.io/api/scheduling/v1
   k8s.io/api/scheduling/v1alpha1
   k8s.io/api/scheduling/v1beta1
-  k8s.io/api/settings/v1alpha1
   k8s.io/api/storage/v1
   k8s.io/api/storage/v1alpha1
   k8s.io/api/storage/v1beta1
